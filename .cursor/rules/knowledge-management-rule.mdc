@@ -69,6 +69,15 @@ actions:
       
       The learning will be stored in `.cursor/learnings/` 
       and indexed in `.cursor/LEARNINGS.md`
+      
+      After creating the learning file, I'll:
+      1. Update `.cursor/LEARNINGS.md` with:
+         - A link to the new learning file
+         - The learning's title and short description
+         - Creation date and ID
+         - Keywords for easy discovery
+      2. Verify all file references are valid
+      3. Ensure the index is properly formatted
 
   - type: react
     conditions:
