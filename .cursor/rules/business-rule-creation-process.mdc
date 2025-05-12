@@ -1,0 +1,513 @@
+# Business Rule Creation Process
+
+Rule for guiding the structured creation of new business rules when no existing rule covers a support ticket scenario.
+
+<rule>
+name: rule_creation_process
+filters:
+  # Rule creation event filters
+  - type: event
+    pattern: "rule_creation"
+  - type: command
+    pattern: "create"
+  - type: command
+    pattern: "draft"
+  - type: command
+    pattern: "new"
+  - type: file_change
+    pattern: "templates/RULE_TEMPLATE.md"
+  - type: file_change
+    pattern: "rules/drafts/*.md"
+  
+  # Rule validation filters
+  - type: event
+    pattern: "rule_review"
+  - type: event
+    pattern: "rule_validation"
+  - type: command
+    pattern: "validate"
+  - type: command
+    pattern: "activate"
+  - type: command
+    pattern: "finalize"
+
+actions:
+  #
+  # SECTION 1: TEMPLATE INITIALIZATION
+  #
+  
+  - type: react
+    conditions:
+      - pattern: "initialize template|create draft|start rule"
+    action: |
+      # Initialize a new rule from template
+      
+      I'll help initialize a new rule file:
+      
+      ```bash
+      cp templates/RULE_TEMPLATE.md rules/drafts/BR-TBD-descriptive-slug.md
+      ```
+      
+      The initial filename follows these conventions:
+      - Placed in the `rules/drafts/` directory
+      - Starting with `BR-TBD-` (To Be Determined)
+      - Ending with a descriptive kebab-case slug
+      
+      I'll generate a descriptive slug based on the rule's purpose
+      using 2-5 words that capture the core concept.
+
+  - type: react
+    event: "file_change"
+    conditions:
+      - pattern: "templates/RULE_TEMPLATE.md"
+    action: |
+      # Process template changes
+      
+      When the rule template is updated, I'll:
+      1. Analyze the changes to understand new elements
+      2. Document the template changes for future reference
+      3. Consider if any existing draft rules need updates
+      4. Update the rule creation process accordingly
+      
+      This ensures the rule creation process stays aligned
+      with the current template format.
+  
+  #
+  # SECTION 2: INITIAL DRAFT CONTENT
+  #
+  
+  - type: react
+    conditions:
+      - pattern: "fill metadata|draft metadata"
+    action: |
+      # Generate rule metadata content
+      
+      I'll help draft the basic metadata sections:
+
+      ```markdown
+      # Business Rule: [Concise title describing the rule]
+
+      ## Status: Draft
+      ## Effective Date: TBD
+      ## Rule ID: BR-TBD
+      ```
+      
+      The title should be:
+      - Clear and descriptive (3-7 words)
+      - Focused on the business process
+      - Consistent with existing rule naming
+      
+      Status remains "Draft" until finalization.
+      Rule ID stays "BR-TBD" until assigned a final number.
+
+  - type: react
+    conditions:
+      - pattern: "write description|draft description"
+    action: |
+      # Create rule description
+      
+      I'll help draft a clear description that covers:
+      - What business process this rule governs
+      - What systems are affected
+      - What outcomes are expected
+      
+      A good description:
+      - Is 1-3 paragraphs
+      - States the purpose without implementation details
+      - Connects to business objectives
+      - Avoids technical jargon unless necessary
+      - Provides enough context for non-experts
+
+  - type: react
+    conditions:
+      - pattern: "define conditions|draft conditions"
+    action: |
+      # Define rule conditions
+      
+      I'll help draft the conditions section:
+      
+      ```markdown
+      ## Conditions
+      - When [specific event or situation occurs]
+      - Except when [exceptions to the rule]
+      - Applies to [systems, processes, or user roles]
+      ```
+      
+      Good conditions are:
+      - Specific and testable
+      - Mutually exclusive when representing branches
+      - Collectively exhaustive for the domain
+      - Clear on what triggers the rule
+      - Explicit about exceptions
+      
+      I'll extract conditions from the ticket description
+      and ask clarifying questions for any ambiguity.
+
+  - type: react
+    conditions:
+      - pattern: "add examples|draft examples"
+    action: |
+      # Create rule examples
+      
+      I'll help create example scenarios:
+      
+      ```markdown
+      ## Examples
+      ### Example 1: [Brief scenario name]
+      Input: [Incoming request, event, or situation]
+      Output: [Expected response or result]
+      ```
+      
+      Effective examples:
+      - Start with the common case from the ticket
+      - Add edge cases and exceptions
+      - Use concrete, realistic values
+      - Show both inputs and outputs clearly
+      - Cover different variations of rule application
+      
+      Each example should be self-contained and demonstrate
+      a specific aspect of the rule.
+
+  - type: react
+    conditions:
+      - pattern: "revision history|start history"
+    action: |
+      # Initialize revision history
+      
+      I'll set up the initial revision history:
+      
+      ```markdown
+      ## Revision History
+      | Date | Editor | Changes |
+      |------|--------|---------|
+      | [Today's date] | @[your-username] | Initial draft |
+      ```
+      
+      This establishes proper tracking from the beginning.
+      All future changes will be recorded in this section.
+  
+  #
+  # SECTION 3: EXPERT VALIDATION
+  #
+  
+  - type: react
+    conditions:
+      - pattern: "identify expert|find expert"
+    action: |
+      # Identify appropriate subject matter experts
+      
+      I'll help identify the right experts to consult:
+      
+      1. Analyze the rule domain to determine expertise needed:
+         - Who owns the affected business process?
+         - Who developed the related feature?
+         - Who has historical knowledge of this domain?
+      
+      2. Consider these expert categories:
+         - Business process owners
+         - Technical implementation experts
+         - Regulatory/compliance specialists
+         - Customer-facing teams
+         - Related feature developers
+      
+      3. Generate appropriate @ mentions for the ticket
+         based on this analysis
+
+  - type: react
+    conditions:
+      - pattern: "draft questions|expert questions"
+    action: |
+      # Create focused questions for experts
+      
+      I'll help draft specific questions for experts:
+      
+      Good expert questions are:
+      - Specific rather than general
+      - Focused on unclear aspects
+      - Structured for clear responses
+      - Limited to 3-5 key questions
+      
+      Example question formats:
+      - "Is this the correct calculation method for X?"
+      - "What should happen in edge case Y?"
+      - "Are there exceptions to consider for Z?"
+      - "Which systems should this rule apply to?"
+      
+      These targeted questions get precise feedback
+      rather than general comments.
+
+  - type: react
+    conditions:
+      - pattern: "document consultation|record feedback"
+    action: |
+      # Document expert consultation
+      
+      I'll help record expert input systematically:
+      
+      1. Document who provided input
+      2. Record key decisions and clarifications
+      3. Note any conflicting viewpoints
+      4. Update the draft rule based on feedback
+      5. Add experts to revision history:
+         ```markdown
+         | [Today's date] | @expert-name | Provided input on calculations |
+         ```
+      
+      This creates a clear record of who influenced the rule
+      and what changes resulted from their input.
+  
+  #
+  # SECTION 4: FINALIZATION AND ACTIVATION
+  #
+  
+  - type: react
+    conditions:
+      - pattern: "assign id|final id"
+    action: |
+      # Assign final rule ID
+      
+      I'll help determine and assign the final rule ID:
+      
+      1. Find the highest existing rule number:
+         ```bash
+         ls rules/ | grep -o 'BR-[0-9]*' | sort -r | head -1
+         ```
+      
+      2. Increment to get the next available number
+      
+      3. Update all references in the file:
+         - Change title references from BR-TBD to BR-nnn
+         - Update the Rule ID section
+      
+      4. Prepare to rename the file:
+         ```bash
+         git mv rules/drafts/BR-TBD-slug.md rules/BR-nnn-slug.md
+         ```
+      
+      This ensures sequential rule IDs and consistent naming.
+
+  - type: react
+    conditions:
+      - pattern: "complete sections|finalize content"
+    action: |
+      # Complete remaining rule sections
+      
+      I'll help ensure all rule sections are complete:
+      
+      1. Verify these sections are fully developed:
+         - Description (clear and comprehensive)
+         - Conditions (all cases covered)
+         - Examples (common case and edge cases)
+         - Related rules (if applicable)
+      
+      2. Check for quality and completeness:
+         - No TBD or placeholder text remains
+         - All expert questions have been resolved
+         - All sections follow the template format
+         - Examples cover the full range of scenarios
+      
+      This final check ensures the rule is ready for activation.
+
+  - type: react
+    conditions:
+      - pattern: "activate rule|publish rule"
+    action: |
+      # Activate the rule
+      
+      I'll guide you through rule activation:
+      
+      1. Move to the active directory:
+         ```bash
+         git mv rules/drafts/BR-TBD-slug.md rules/BR-nnn-slug.md
+         ```
+      
+      2. Update status and dates:
+         ```markdown
+         ## Status: Active
+         ## Effective Date: [Today's or future date]
+         ```
+      
+      3. Make the final commit:
+         ```bash
+         git commit -am "feat(rule): activate BR-nnn - descriptive name (Closes #123)"
+         ```
+      
+      4. Generate the ticket closing comment:
+         "Rule BR-nnn created and activated. Ticket resolved."
+      
+      This completes the rule creation lifecycle with
+      proper version control and ticket management.
+
+  - type: suggest
+    message: |
+      ### Business Rule Creation Process
+
+      This system guides you through creating well-structured business rules:
+
+      **Initialization:**
+      - `initialize template "descriptive name"` - Start a new rule draft
+      - `fill metadata "Rule Title"` - Set up basic rule information
+
+      **Content Creation:**
+      - `write description "ticket content"` - Draft the rule description
+      - `define conditions "scenario details"` - Specify when the rule applies
+      - `add examples "common scenario"` - Create example use cases
+      - `revision history start` - Initialize tracking
+
+      **Expert Input:**
+      - `identify expert "rule domain"` - Find subject matter experts
+      - `draft questions "unclear aspects"` - Create focused expert questions
+      - `document consultation "expert feedback"` - Record expert input
+
+      **Finalization:**
+      - `assign id` - Determine the next available rule ID
+      - `complete sections` - Finalize all rule content
+      - `activate rule` - Move to active status
+
+      Follow this process to transform support tickets into well-documented business rules that build your knowledge base over time.
+
+examples:
+  # Template Initialization Examples
+  - input: |
+      initialize template "Expired Subscription Extension Fee"
+    output: |
+      Template initialized at:
+      rules/drafts/BR-TBD-expired-subscription-extension-fee.md
+      
+      The file has been created from the template with a descriptive slug
+      based on the rule's purpose. You can now begin filling in the content.
+
+  - input: |
+      fill metadata "Expired Subscription Extension Fee"
+    output: |
+      Metadata sections drafted:
+      
+      ```markdown
+      # Business Rule: Expired Subscription Extension Fee
+      
+      ## Status: Draft
+      ## Effective Date: TBD
+      ## Rule ID: BR-TBD
+      ```
+      
+      The title clearly describes the rule's purpose. Status is set to
+      Draft during development, and the Rule ID will be assigned during finalization.
+
+  # Content Creation Examples
+  - input: |
+      write description "When customers try to renew a subscription after it has expired, they currently get confused about what fee applies. We need a clear rule for what fee to charge in this scenario."
+    output: |
+      Description drafted:
+      
+      ```markdown
+      ## Description
+      This rule governs the fee calculation process when customers request to renew or extend a subscription after it has already expired. It defines the appropriate fee structure, calculation method, and exceptions for expired subscription renewals. This rule ensures consistent fee application across customer service and billing systems.
+      ```
+      
+      The description clearly states the purpose without implementation details.
+      It identifies both the business process and the affected systems.
+
+  - input: |
+      define conditions "This applies when a subscription has expired (not active), and the customer wants to renew it. It should not apply to active subscriptions or to completely new subscriptions."
+    output: |
+      Conditions drafted:
+      
+      ```markdown
+      ## Conditions
+      - When a customer requests renewal or extension of a subscription
+      - When the subscription status is "Expired" (terminated due to non-renewal)
+      - When the expiration date is in the past but within 90 days
+      - Except when the customer is creating a completely new subscription
+      - Except when the subscription is still active
+      - Applies to all subscription types and customer categories
+      ```
+      
+      The conditions define when the rule applies and explicitly state exceptions.
+      They are specific, testable, and cover the complete scenario described.
+
+  # Expert Validation Examples
+  - input: |
+      identify expert "expired subscription fees"
+    output: |
+      Expert identification analysis:
+      
+      Based on the rule domain "expired subscription fees", these experts should be consulted:
+      
+      1. @sarah-billing - Billing Team Lead
+         - Owns the subscription billing process
+         - Has final say on fee structures
+      
+      2. @mark-customer-support - Customer Support Manager
+         - Can provide input on customer impact
+         - Handles most subscription extension requests
+      
+      3. @dev-team-subscriptions - Subscription Feature Team
+         - Implemented the current subscription system
+         - Needs to be aware of any rule changes
+      
+      Recommended approach: Mention all three in the ticket, but direct
+      primary questions to @sarah-billing for fee-specific decisions.
+
+  - input: |
+      draft questions "unclear aspects about expired subscription fees"
+    output: |
+      Expert questions drafted:
+      
+      Questions for @sarah-billing:
+      1. "What percentage of the subscription price should be charged as an expired renewal fee?"
+      2. "Should the fee be different based on how long ago the subscription expired?"
+      3. "Are there any customer categories exempt from this fee?"
+      
+      Questions for @mark-customer-support:
+      1. "What is the current practice when handling expired subscription renewals?"
+      2. "What customer communication should accompany this fee?"
+      
+      Questions for @dev-team-subscriptions:
+      1. "Are there any technical limitations in implementing this fee structure?"
+      
+      These focused questions address specific unclear aspects of the rule
+      and are structured for clear, actionable responses.
+
+  # Finalization Examples
+  - input: |
+      assign id
+    output: |
+      Rule ID assignment:
+      
+      The highest existing rule ID is BR-203.
+      The next available ID is BR-204.
+      
+      Rule ID has been updated from BR-TBD to BR-204 in the file.
+      File will be renamed during activation from:
+      rules/drafts/BR-TBD-expired-subscription-extension-fee.md
+      to:
+      rules/BR-204-expired-subscription-extension-fee.md
+
+  - input: |
+      activate rule
+    output: |
+      Rule activated:
+      
+      1. File moved to active directory:
+         rules/BR-204-expired-subscription-extension-fee.md
+      
+      2. Status updated to Active:
+         ```markdown
+         ## Status: Active
+         ## Effective Date: 2025-05-09
+         ```
+      
+      3. Final commit prepared:
+         ```
+         feat(rule): activate BR-204 - expired subscription extension fee (Closes #123)
+         ```
+      
+      4. Ticket closing comment:
+         "Rule BR-204 created and activated. Ticket resolved."
+      
+      The rule creation process is now complete!
+
+metadata:
+  priority: high
+  version: 1.0
+</rule>

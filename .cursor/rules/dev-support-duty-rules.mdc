@@ -1,0 +1,655 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+- type: react
+    conditions:
+      - pattern: "ticket link rule|link ticket rule"
+    action: |
+      # Link a ticket to a business rule
+      
+      I'll establish a bidirectional link between a ticket and a rule:
+      
+      1. Update the ticket to reference the rule
+      2. Update the rule to reference the ticket (if applicable)
+      3. Update the ticket status based on the rule status
+      
+      ```bash
+      # Find the ticket file
+      TICKET_FILE=$(find tickets/ -name "${ticketId}.md")
+      RULE_FILE=$(find rules/ -name "${ruleId}.md" -o -name "${ruleId}-*.md" | head -1)
+      
+      if [ -f "$TICKET_FILE" ] && [ -f "$RULE_FILE" ]; then
+        # Extract rule title from the rule file
+        RULE_TITLE=$(grep "^# Business Rule:" "$RULE_FILE" | sed 's/# Business Rule: //')
+        
+        # Update the ticket to reference the rule
+        if ! grep -q "## Related Rules" "$TICKET_FILE"; then
+          echo -e "\n## Related Rules\n" >> "$TICKET_FILE"
+        fi
+        
+        # Check if rule reference already exists
+        if ! grep -q "$ruleId" "$TICKET_FILE"; then
+          echo "- ]($RULE_FILE)" >> "$TICKET_FILE"
+        fi
+        
+        # Update notes with resolution info
+        echo -e "\n### $(date +%Y-%m-%d) - @${currentUser}\nLinked to rule $ruleId. ${resolutionComment}" >> "$TICKET_FILE"
+        
+        # Update ticket status based on rule linkage
+        if [ "$closeTicket" = "true" ]; then
+          sed -i "s/status: .*/status: Closed/" "$TICKET_FILE"
+          sed -i "s/^## Status.*$/## Status\nClosed - Resolved with rule $ruleId/" "$TICKET_FILE"
+          
+          # Update index
+          sed -i "s/| ${ticketId} |.*|/| ${ticketId} | ${title} | ${category} | Closed | ${created} | $(date +%Y-%m-%d) | ${assignee} |/" .cursor/TICKETS.md
+        fi
+        
+        # Optionally, update the rule to reference the ticket
+        if [ "$updateRule" = "true" ]; then
+          if ! grep -q "## Related Tickets" "$RULE_FILE"; then
+            echo -e "\n## Related Tickets\n" >> "$RULE_FILE"
+          fi
+          
+          # Add ticket reference to rule if it doesn't already exist
+          if ! grep -q "$ticketId" "$RULE_FILE"; then
+       ketId: $title]($TICKET_FILE)" >> "$RULE_FILE"
+          fi
+        fi
+      else
+        echo "Ticket ${ticketId} or Rule ${ruleId} not found"
+      fi
+      ```
+      
+      This linking mechanism:
+      1. Creates a clear relationship between tickets and rules
+      2. Provides traceability for resolutions
+      3. Maintains a history of which rules addressed which tickets
+      4. Allows for easy navigation between related content  - type: react
+    conditions:
+      - pattern: "ticket update|update ticket"
+    action: |
+      # Update an existing ticket
+      
+      I'll update an existing ticket file and the index:
+      
+      1. Locate the ticket file by ID
+      2. Update the specified fields
+      3. Update the Last Updated timestamp
+      4. Update the corresponding entry in the tickets index
+      
+      ```bash
+      # Find the ticket file
+      TICKET_FILE=$(find tickets/ -name "${ticketId}.md")
+      
+      if [ -f "$TICKET_FILE" ]; then
+        # Update frontmatter and content
+        # This is a simplified representation - actual implementation would
+        # require more sophisticated parsing and content manipulation
+        
+        # Update the Last Updated field in frontmatter
+        sed -i "s/updated: .*/updated: $(date +%Y-%m-%d)/" "$TICKET_FILE"
+        
+        # Update the status if provided
+        if [ ! -z "${status}" ]; then
+          sed -i "s/status: .*/status: ${status}/" "$TICKET_FILE"
+          sed -i "s/^## Status.*$/## Status\n${status}/" "$TICKET_FILE"
+        fi
+        
+        # Update assignee if provided
+        if [ ! -z "${assignee}" ]; then
+          sed -i "s/assignee: .*/assignee: ${assignee}/" "$TICKET_FILE"
+          sed -i "s/^## Assignee.*$/## Assignee\n${assignee}/" "$TICKET_FILE"
+        fi
+        
+        # Append to notes if provided
+        if [ ! -z "${note}" ]; then
+          echo -e "\n### $(date +%Y-%m-%d) - @${currentUser}\n${note}" >> "$TICKET_FILE"
+        fi
+        
+        # Update the index entry
+        # This would require a more sophisticated approach to find and replace the line
+        # Simple example:
+        if [ ! -z "${status}" ]; then
+          sed -i "s/| ${ticketId} |.*|/| ${ticketId} | ${title} | ${category} | ${status} | ${created} | $(date +%Y-%m-%d) | ${assignee} |/" .cursor/TICKETS.md
+        fi
+      else
+        echo "Ticket ${ticketId} not found"
+      fi
+      ```
+      
+      This update mechanism ensures:
+      1. Ticket status remains current
+      2. History of changes is maintained
+      3. The index stays synchronized with ticket files
+      4. Notes provide an audit trail of communications and decisions# Support Duty Business Rules
+
+Rule for managing tickets and business rules using a standardized workflow for efficient handling and documentation.
+
+<rule>
+name: support_duty_workflow
+filters:
+  # Ticket processing filters
+  - type: event
+    pattern: "ticket_received"
+  - type: event
+    pattern: "ticket_classification"
+  - type: event
+    pattern: "ticket_creation"
+  - type: file_change
+    pattern: "tickets/*"
+  - type: command
+    pattern: "ticket"
+  - type: command
+    pattern: "classify"
+  - type: command
+    pattern: "create_ticket"
+  
+  # Rule management filters
+  - type: event
+    pattern: "rule_search"
+  - type: event
+    pattern: "rule_create"
+  - type: event
+    pattern: "rule_update"
+  - type: file_change
+    pattern: "rules/*"
+  - type: file_change
+    pattern: "rules/drafts/*"
+  - type: command
+    pattern: "rule"
+
+actions:
+  #
+  # SECTION 1: TICKET CLASSIFICATION
+  #
+  
+  - type: react
+    conditions:
+      - pattern: "ticket classify|classify ticket"
+    action: |
+      # Classify a new ticket
+      
+      I'll analyze the ticket content to determine if an existing rule covers it:
+      - Check for direct references to rule IDs (e.g., "BR-042")
+      - Look for terminology that matches existing rule definitions
+      - Identify if the problem pattern was previously documented
+      - Determine if similar tickets were previously addressed
+      
+      Based on this analysis, I'll classify the ticket as either:
+      1. "EXISTING_RULE" - A rule already exists that covers this case
+      2. "NEW_RULE" - No existing rule covers this case, a new rule is needed
+      
+      I'll provide a clear explanation of my classification decision
+      and recommended next steps based on the classification.
+
+  - type: react
+    event: "file_change"
+    conditions:
+      - pattern: "tickets/.*"
+    action: |
+      # Automatically analyze new or changed tickets
+      
+      When a ticket is created or updated, I'll:
+      1. Extract the key information from the ticket
+      2. Search for potentially matching rules
+      3. Provide a preliminary classification
+      4. Suggest next steps based on classification
+      
+      This ensures new tickets are quickly processed and routed
+      to the appropriate workflow path.
+
+  - type: react
+    conditions:
+      - pattern: "ticket summary|ticket status"
+    action: |
+      # Generate ticket status summary
+      
+      I'll provide a summary of all tickets:
+      - Total tickets received
+      - Tickets matched to existing rules
+      - Tickets requiring new rules
+      - Tickets awaiting expert input
+      - Tickets ready for closing
+      
+      This gives visibility into the current support workload
+      and identifies any bottlenecks in the process.
+      
+  - type: react
+    conditions:
+      - pattern: "create_ticket|ticket create|new ticket"
+    action: |
+      # Create a new ticket file with parsed content and specific frontmatter
+      
+      I'll create a new ticket file by parsing the provided content format:
+      
+      1. Extract metadata fields from the standard format
+      2. Create ticket file with specific frontmatter structure
+      3. Update the central ticket index
+      
+      ## Step 1: Parse ticket content and extract fields
+      
+      ```bash
+      mkdir -p tickets
+      mkdir -p .cursor
+      
+      # Generate the next ticket number for our internal tracking
+      DATE=$(date +%Y%m%d)
+      LAST_NUM=$(find tickets/ -name "T-$DATE-*.md" | sort -r | head -1 | grep -o '[0-9]\{4\}' || echo "0000")
+      NEXT_NUM=$(printf "%04d" $((10#$LAST_NUM + 1)))
+      INTERNAL_ID="T-$DATE-$NEXT_NUM"
+      
+      # Extract fields using regex patterns
+      # This would be a shell script approximation - actual implementation would be more robust
+      
+      # Extract ticket ID
+      TICKET_ID=$(echo "$1" | grep -o "Id do chamado: [^ ]*" | sed "s/Id do chamado: //")
+      
+      # Extract title
+      TICKET_TITLE=$(echo "$1" | grep -o "Título do Chamado: [^\n]*" | sed "s/Título do Chamado: //")
+      
+      # Extract description
+      DESCRIPTION=$(echo "$1" | grep -o "Descrição do Chamado: [^\n]*" | sed "s/Descrição do Chamado: //")
+      
+      # Extract category
+      CATEGORY=$(echo "$1" | grep -o "Categoria do Chamado: *\n*[^\n]*" | grep -v "Categoria do Chamado:" | tr -d '\n' | xargs)
+      
+      # Extract PushID
+      PUSH_ID=$(echo "$1" | grep -o "PushID: [^ ]*" | sed "s/PushID: //")
+      
+      # Extract email
+      EMAIL=$(echo "$1" | grep -o "Email do Usuário(a): [^ ]*" | sed "s/Email do Usuário(a): //")
+      
+      # Extract requester
+      REQUESTER=$(echo "$1" | grep -o "Solicitante: [^ ]*" | sed "s/Solicitante: //")
+      
+      # Extract Jira URL
+      JIRA_URL=$(echo "$1" | grep -o "https://[^ ]*" | head -1)
+      
+      # Create ticket file with specific frontmatter
+      cat > tickets/$INTERNAL_ID.md << EOF
+      ---
+      ticket-id: $TICKET_ID
+      ticket-title: $TICKET_TITLE
+      ticket-user-push-id: $PUSH_ID
+      ticket-user-email: $EMAIL
+      ticket-requester: $REQUESTER
+      ticket-jira-url: $JIRA_URL
+      status: Open
+      created: $(date +%Y-%m-%d)
+      updated: $(date +%Y-%m-%d)
+      internal-id: $INTERNAL_ID
+      category: $CATEGORY
+      assignee: 
+      ---
+      
+      # Ticket: $TICKET_ID
+      
+      ## Title
+      $TICKET_TITLE
+      
+      ## Description
+      $DESCRIPTION
+      
+      ## Category
+      $CATEGORY
+      
+      ## User Information
+      - Email: $EMAIL
+      - PushID: $PUSH_ID
+      - Requester: $REQUESTER
+      
+      ## Jira Reference
+      $JIRA_URL
+      
+      ## Status
+      Open
+      
+      ## Created Date
+      $(date +%Y-%m-%d)
+      
+      ## Last Updated
+      $(date +%Y-%m-%d)
+      
+      ## Assignee
+      
+      ## Notes
+      
+      EOF
+      ```
+      
+      ## Step 2: Update the tickets index
+      
+      ```bash
+      # Create index file if it doesn't exist
+      if [ ! -f .cursor/TICKETS.md ]; then
+        cat > .cursor/TICKETS.md << EOF
+      # Tickets Index
+      
+      This file provides an index of all support tickets. It is automatically maintained by the system.
+      
+      | Internal ID | External ID | Title | Category | Status | Created | Updated | Assigned To | Jira Reference |
+      |-------------|------------|-------|----------|--------|---------|---------|-------------|----------------|
+      EOF
+      fi
+      
+      # Add new ticket to the index - shortened title if needed
+      SHORT_TITLE=$(echo "$TICKET_TITLE" | cut -c 1-40)
+      if [ ${#TICKET_TITLE} -gt 40 ]; then
+        SHORT_TITLE="$SHORT_TITLE..."
+      fi
+      
+      # Add to index with all fields
+      echo "| $INTERNAL_ID | $TICKET_ID | $SHORT_TITLE | $CATEGORY | Open | $(date +%Y-%m-%d) | $(date +%Y-%m-%d) |  | [Jira]($JIRA_URL) |" >> .cursor/TICKETS.md
+      ```
+      
+      This enhanced approach:
+      1. Parses the standardized ticket format
+      2. Extracts specific metadata fields
+      3. Creates the ticket file with the requested frontmatter structure
+      4. Updates the central index with cross-references
+      5. Maintains both internal and external tracking IDs
+  
+  #
+  # SECTION 2: EXISTING RULE WORKFLOW
+  #
+  
+  - type: react
+    conditions:
+      - pattern: "rule find|find rule|search rule"
+    action: |
+      # Search for an existing rule
+      
+      I'll search for matching rules using multiple strategies:
+      
+      1. ID-based search if an ID is provided:
+         `grep -r "BR-042" rules/`
+      
+      2. Keyword-based search for domain terms:
+         `find rules/ -type f -name "*.md" | xargs grep -l "keyword"`
+      
+      3. Semantic search for conceptually similar rules:
+         `grep -r -i "related\|similar\|terms" rules/`
+      
+      4. Recent rule changes search:
+         `git log --name-only --pretty=format: | grep "rules/" | sort | uniq`
+      
+      For each matching rule, I'll:
+      - Provide the rule ID and title
+      - Show the most relevant section
+      - Assess how well it matches the ticket
+      - Suggest response language for the ticket
+
+  - type: react
+    conditions:
+      - pattern: "rule explain|explain rule"
+    action: |
+      # Generate plain language explanation of a rule
+      
+      I'll create a simplified explanation of the rule that:
+      - Extracts the core principle in everyday language
+      - Connects the rule to the specific ticket situation
+      - Highlights the most relevant conditions and examples
+      - Presents the information in a clear, conversational style
+      
+      This translation makes the rule accessible to non-technical
+      stakeholders while maintaining accuracy.
+
+  - type: react
+    conditions:
+      - pattern: "rule improve|improve rule"
+    action: |
+      # Suggest minor improvements to an existing rule
+      
+      If a rule is unclear or could be improved, I'll:
+      1. Identify specific sections that need clarification
+      2. Suggest improved wording while maintaining the intent
+      3. Generate a commit message for the change:
+         `docs(rule): clarify example in BR-042`
+      4. Note that CHANGELOG.md doesn't need updates for minor changes
+      
+      These small improvements gradually enhance rule quality
+      without requiring a formal review process.
+  
+  #
+  # SECTION 3: NEW RULE WORKFLOW
+  #
+  
+  - type: react
+    conditions:
+      - pattern: "rule create|create rule|new rule"
+    action: |
+      # Create a new rule from template
+      
+      I'll guide you through creating a new rule:
+      
+      1. Set up the initial file:
+         `cp templates/RULE_TEMPLATE.md rules/drafts/BR-TBD-descriptive-slug.md`
+      
+      2. Fill in the initial content with:
+         - A clear title describing the rule's purpose
+         - Status: Draft
+         - Problem description from the ticket
+         - Initial conditions based on known information
+         - At least one example based on the ticket
+         - Initial revision history entry
+      
+      3. Prepare the commit:
+         `git commit -am "feat(rule): draft rule for issue #123 (Closes #123)"`
+      
+      This creates a well-structured draft rule ready for expert review.
+
+  - type: react
+    conditions:
+      - pattern: "rule expert|expert input"
+    action: |
+      # Identify experts and formulate questions
+      
+      To get the right expert input, I'll:
+      1. Analyze the rule domain to identify relevant experts
+      2. Suggest specific people to consult based on expertise areas
+      3. Generate focused questions to ask the expert:
+         - Clarification on specific conditions
+         - Validation of example scenarios
+         - Confirmation of business impact
+         - Input on edge cases
+      
+      This ensures you get precise, actionable feedback
+      rather than general comments.
+
+  - type: react
+    conditions:
+      - pattern: "rule finalize|finalize rule"
+    action: |
+      # Finalize a draft rule
+      
+      I'll help finalize the rule by:
+      
+      1. Determining the next available rule ID
+      2. Updating all references within the file:
+         - Change BR-TBD to BR-nnn
+         - Set Status: Active
+         - Add Effective Date
+         - Complete any missing sections
+      
+      3. Moving the file to the active directory:
+         `git mv rules/drafts/BR-TBD-slug.md rules/BR-nnn-slug.md`
+      
+      4. Preparing the final commit:
+         `git commit -am "feat(rule): activate BR-nnn - descriptive name (Closes #123)"`
+      
+      5. Generating the ticket closing comment:
+         "Rule BR-nnn created and activated. Ticket resolved."
+      
+      This completes the rule creation workflow with a properly
+      formatted active rule.
+
+  - type: react
+    event: "file_change"
+    conditions:
+      - pattern: "rules/drafts/.*\\.md$"
+    action: |
+      # Process updates to draft rules
+      
+      When a draft rule is updated, I'll:
+      1. Verify all required sections are present
+      2. Check for consistency in formatting
+      3. Highlight any gaps that still need to be addressed
+      4. Suggest next steps in the rule creation process
+      
+      This helps ensure draft rules progress toward completion.
+
+  - type: suggest
+    message: |
+      ### Support Duty Workflow System
+
+      This system helps you efficiently process tickets and maintain business rules:
+
+      **Ticket Management:**
+      - `create_ticket "title" "description" "category" "email"` - Create a new ticket file
+      - `ticket update "T-20250509-0001" status="In Progress" assignee="@username"` - Update a ticket
+      - `ticket classify "ticket content or ID"` - Determine if a ticket matches an existing rule
+      - `ticket status` - Generate a summary of current tickets
+      - `ticket link rule "T-20250509-0001" "BR-042" closeTicket="true"` - Link a ticket to a rule
+
+      **Existing Rule Workflow:**
+      - `rule find "search terms"` - Search for existing rules
+      - `rule explain BR-042` - Generate plain language explanation
+      - `rule improve BR-042` - Suggest minor improvements to a rule
+
+      **New Rule Workflow:**
+      - `rule create "title" "from ticket #123"` - Create a new rule draft
+      - `rule expert BR-TBD-slug` - Get expert input on a draft rule
+      - `rule finalize BR-TBD-slug` - Finalize a draft rule
+
+      All tickets are tracked in `.cursor/TICKETS.md` for easy reference. This structured workflow ensures every ticket either gets matched to an existing rule or results in a new rule, gradually building comprehensive documentation without complicating your daily work.
+
+examples:
+  # Ticket Management Examples
+  - input: |
+      create_ticket "Id do chamado: U07AY2NL08G1746799252
+      Título do Chamado: Alterar meio de autenticação para e-mail
+      Descrição do Chamado: Alterar meio de autenticação para e-mail gina.kercia@hotmail.com. Autenticação está pelo facebook e cliente não consegue logar, por favor, seguir com alteração. Cliente será orientada em relação a alteração de senha conforme
+      Categoria do Chamado: Cadastro
+      PushID: ZdvwUH46peQP6Gon3lmtw8emvjA2
+      Email do Usuário(a): gina.kercia@hotmail.com
+      Reserva:
+      Solicitante: @Nancy
+      Reclame Aqui:
+      https://turbi-team.atlassian.net/browse/PTH-42350 
+      --------------------------------------"
+    output: |
+      New ticket created:
+      - Internal ID: T-20250509-0001
+      - External ID: U07AY2NL08G1746799252
+      - Title: Alterar meio de autenticação para e-mail
+      - Category: Cadastro
+      - Status: Open
+      
+      Frontmatter metadata:
+      - ticket-id: U07AY2NL08G1746799252
+      - ticket-title: Alterar meio de autenticação para e-mail
+      - ticket-user-push-id: ZdvwUH46peQP6Gon3lmtw8emvjA2
+      - ticket-user-email: gina.kercia@hotmail.com
+      - ticket-requester: @Nancy
+      - ticket-jira-url: https://turbi-team.atlassian.net/browse/PTH-42350
+      
+      Ticket file created at tickets/T-20250509-0001.md
+      Index updated at .cursor/TICKETS.md
+      
+      This ticket is ready for classification and processing.
+
+  - input: |
+      ticket update "T-20250509-0001" status="In Progress" assignee="@maria"
+    output: |
+      Ticket T-20250509-0001 updated:
+      - Status: In Progress
+      - Assignee: @maria
+      - Last Updated: 2025-05-09
+      
+      Index at .cursor/TICKETS.md has been synchronized.
+
+  - input: |
+      ticket link rule "T-20250509-0001" "BR-087" closeTicket="true"
+    output: |
+      Ticket T-20250509-0001 linked to rule BR-087:
+      - Status updated to: Closed
+      - Resolution note added
+      - Bidirectional link established
+      - Index updated
+      
+      Ticket successfully resolved with reference to BR-087: Authentication Method Change.
+
+  - input: |
+      ticket classify "Customer is asking if we have a rule for extension fees when their subscription expires"
+    output: |
+      Ticket classified as "NEW_RULE"
+      
+      No existing rule covers extension fees for expired subscriptions.
+      Recommended action: Create a new rule using the template.
+
+  - input: |
+      ticket status
+    output: |
+      Current Ticket Status:
+      - Total: 12 tickets
+      - Matched to existing rules: 7
+      - Requiring new rules: 3
+      - Awaiting expert input: 2
+      - Ready for closing: 1
+
+  # Existing Rule Workflow Examples
+  - input: |
+      rule find "extension fee"
+    output: |
+      Found 1 matching rule:
+      
+      BR-042: Extension Fee Calculation
+      Relevant section: "Extension fees are calculated at 5% of the monthly subscription cost for extensions requested before expiration."
+      
+      This rule covers extension fees for active subscriptions, but not for expired subscriptions.
+
+  - input: |
+      rule explain BR-042
+    output: |
+      Plain language explanation of BR-042:
+      
+      When a customer wants to extend their subscription before it expires, we charge them a small fee equal to 5% of their regular monthly payment. For example, if they pay $100/month, the extension fee would be $5.
+      
+      This applies only when they ask for an extension before their subscription ends, not after it has already expired.
+
+  # New Rule Workflow Examples
+  - input: |
+      rule create "Expired Subscription Extension Fee" "from ticket #123"
+    output: |
+      Draft rule created at rules/drafts/BR-TBD-expired-subscription-extension-fee.md
+      
+      Initial content added based on ticket #123:
+      - Title: Expired Subscription Extension Fee
+      - Status: Draft
+      - Description from ticket
+      - Initial conditions section
+      - Example based on the ticket scenario
+      - Revision history started
+      
+      Commit prepared: "feat(rule): draft rule for expired subscription fees (Closes #123)"
+
+  - input: |
+      rule finalize BR-TBD-expired-subscription-extension-fee
+    output: |
+      Rule finalized:
+      
+      - Updated ID from BR-TBD to BR-204
+      - Set Status: Active
+      - Added Effective Date: 2025-05-09
+      - Moved to active rules directory: rules/BR-204-expired-subscription-extension-fee.md
+      - Final commit prepared: "feat(rule): activate BR-204 - expired subscription extension fee (Closes #123)"
+      
+      Suggested ticket closing comment:
+      "Rule BR-204 created and activated. Ticket resolved."
+
+metadata:
+  priority: high
+  version: 1.0
+</rule>

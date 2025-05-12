@@ -209,29 +209,6 @@ actions:
       
       This ensures specifications maintain high quality and are properly indexed.
 
-  #
-  # SECTION 3: SPECIFICATION STATUS
-  #
-  
-  - type: react
-    conditions:
-      - pattern: "spec status:(.*)"
-    action: |
-      # Look up tasks associated with a specification
-      
-      I'll analyze the specified spec path/ID:
-      1. Normalize the provided spec path/ID
-      2. Search task files for matching spec_path in front-matter
-      3. Generate a markdown table with columns:
-         - Task ID
-         - Description
-         - State
-         - Start Date
-         - End Date
-      4. If no tasks are found, display "No tasks linked to this specification"
-      
-      This provides visibility into implementation progress for specifications.
-
   - type: suggest
     message: |
       ### Specification Management System
@@ -247,10 +224,6 @@ actions:
       - `spec validate [path/to/spec.md]` - Detailed validation of a specification
       - `spec format [path/to/spec.md]` - Automatically improve specification formatting
       - `spec completeness` - Generate project-wide specification coverage report
-
-      **Specification Status:**
-      - `spec status:path/to/spec.md` - Show tasks linked to a specification
-      - `spec status:SPEC-ID` - Show tasks linked to a specification by ID
 
       **Automatic Behaviors:**
       - When you ask me to implement something → I'll create specs first

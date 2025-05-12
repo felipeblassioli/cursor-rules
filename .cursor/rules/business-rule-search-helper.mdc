@@ -1,0 +1,367 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Rule Search Helper
+
+Rule for efficiently locating and evaluating relevant business rules when handling support tickets.
+
+<rule>
+name: rule_search_helper
+filters:
+  # Search operation filters
+  - type: event
+    pattern: "rule_search"
+  - type: command
+    pattern: "search"
+  - type: command
+    pattern: "find"
+  - type: command
+    pattern: "locate"
+  - type: file_change
+    pattern: "rules/*.md"
+  - type: file_change
+    pattern: "rules/drafts/*.md"
+  
+  # Rule analysis filters
+  - type: event
+    pattern: "rule_evaluation"
+  - type: command
+    pattern: "evaluate"
+  - type: command
+    pattern: "analyze"
+  - type: command
+    pattern: "compare"
+
+actions:
+  #
+  # SECTION 1: SEARCH STRATEGIES
+  #
+  
+  - type: react
+    conditions:
+      - pattern: "search id|find id"
+    action: |
+      # Execute ID-based rule search
+      
+      I'll search for rules with the specific ID:
+      ```bash
+      grep -r "BR-042" rules/
+      ```
+      
+      This is the most precise method when you know the exact rule ID.
+      Results will include all references to this ID across the rules directory.
+
+  - type: react
+    conditions:
+      - pattern: "search keyword|find keyword"
+    action: |
+      # Execute keyword-based rule search
+      
+      I'll search for rules containing specific domain terminology:
+      ```bash
+      find rules/ -type f -name "*.md" | xargs grep -l "extension fee"
+      ```
+      
+      This finds all rules that contain the exact phrase.
+      I'll also suggest related terms that might yield additional matches.
+
+  - type: react
+    conditions:
+      - pattern: "search semantic|find semantic"
+    action: |
+      # Execute semantic concept search
+      
+      I'll search for conceptually related terms:
+      ```bash
+      grep -r -i "extension\|renewal\|fee\|payment" rules/
+      ```
+      
+      This broader search finds rules that might use different terminology
+      but address the same underlying concept.
+
+  - type: react
+    conditions:
+      - pattern: "search history|find history"
+    action: |
+      # Execute change history search
+      
+      I'll find recently modified rules that might be relevant:
+      ```bash
+      git log -p --all -S "keyword" -- rules/
+      ```
+      
+      This identifies rules that have been changed in relation to
+      the keyword, which might indicate recent attention to the topic.
+  
+  #
+  # SECTION 2: RELEVANCE RANKING
+  #
+  
+  - type: react
+    conditions:
+      - pattern: "rank results|relevance rank"
+    action: |
+      # Rank search results by relevance
+      
+      I'll rank multiple matching rules by:
+      
+      1. Direct Terminology Match:
+         - Rules with exact matches in title and description ranked highest
+      
+      2. Recency:
+         - Recently updated rules (check Revision History)
+         - More recent effective dates indicate current practices
+      
+      3. Specificity:
+         - Rules with more specific conditions over general ones
+         - Rules with detailed examples that match the scenario
+      
+      4. Status:
+         - Active rules over Draft or Deprecated
+      
+      This ranking helps focus on the most applicable rules first.
+
+  - type: react
+    conditions:
+      - pattern: "compare rules|rule comparison"
+    action: |
+      # Compare multiple rules for applicability
+      
+      I'll compare rules that appear relevant:
+      
+      1. Extract core conditions from each rule
+      2. Map each rule's applicability to the ticket scenario
+      3. Identify overlaps and gaps between rules
+      4. Assess which rule most directly addresses the issue
+      5. Note any conflicts between rule requirements
+      
+      This detailed comparison helps determine which rule
+      should be applied in ambiguous situations.
+  
+  #
+  # SECTION 3: RULE ANALYSIS
+  #
+  
+  - type: react
+    conditions:
+      - pattern: "analyze coverage|check coverage"
+    action: |
+      # Analyze if a rule covers a ticket scenario
+      
+      I'll systematically analyze rule coverage:
+      
+      1. Extract key elements from the ticket
+      2. Match against rule conditions
+      3. Check if the ticket scenario appears in rule examples
+      4. Verify that rule scope includes the ticket context
+      5. Consider exceptions that might exclude this case
+      
+      This analysis provides a clear determination of whether
+      the rule fully covers, partially covers, or doesn't cover the ticket.
+
+  - type: react
+    conditions:
+      - pattern: "identify gaps|find gaps"
+    action: |
+      # Identify gaps in rule coverage
+      
+      I'll identify aspects of the ticket not covered by existing rules:
+      
+      1. List all requirements mentioned in the ticket
+      2. Map each requirement to corresponding rule conditions
+      3. Highlight requirements with no matching rule
+      4. Note requirements only partially addressed
+      5. Assess if a new rule is needed or existing rules should be extended
+      
+      This gap analysis ensures complete coverage of business requirements.
+
+  - type: react
+    conditions:
+      - pattern: "rule patterns|identify patterns"
+    action: |
+      # Recognize common rule patterns
+      
+      I'll analyze if the ticket fits common business rule patterns:
+      
+      1. Fee Calculations:
+         - Payment processing, extensions, cancellations
+      
+      2. Validation Rules:
+         - Input constraints, acceptable formats
+      
+      3. Integration Flows:
+         - System interactions, data transformations
+      
+      4. Exception Handling:
+         - Error cases, special situations
+      
+      5. User Permissions:
+         - Access control, authorization rules
+      
+      Recognizing these patterns helps quickly identify relevant rules
+      and assess if existing rule categories might apply.
+  
+  #
+  # SECTION 4: EDGE CASES
+  #
+  
+  - type: react
+    conditions:
+      - pattern: "partial coverage|partial match"
+    action: |
+      # Handle partial rule coverage
+      
+      When a rule partially covers the ticket scenario:
+      
+      1. Clearly document which aspects are covered
+      2. Identify the specific gaps not addressed
+      3. Assess whether to:
+         - Extend the existing rule (minor additions)
+         - Create a supplementary rule (significant differences)
+         - Create an entirely new rule (fundamentally different)
+      
+      This structured approach prevents edge cases from falling
+      through the cracks.
+
+  - type: react
+    conditions:
+      - pattern: "rule conflict|conflicting rules"
+    action: |
+      # Resolve conflicting rule situations
+      
+      When multiple rules appear to apply but conflict:
+      
+      1. Check effective dates (newer overrides older)
+      2. Check specificity (specific overrides general)
+      3. Examine the rules' revision history for context
+      4. Identify which rule most directly addresses the core issue
+      5. Flag for clarification by subject matter expert if unresolvable
+      
+      This approach helps resolve contradictions between rules.
+
+  - type: suggest
+    message: |
+      ### Rule Search Helper
+
+      This system helps you efficiently find and evaluate business rules:
+
+      **Search Strategies:**
+      - `search id "BR-042"` - Find a rule by ID
+      - `search keyword "extension fee"` - Find rules by terminology
+      - `search semantic "payment processing"` - Concept-based search
+      - `search history "refund"` - Find recently updated rules
+
+      **Relevance Analysis:**
+      - `rank results` - Prioritize search results by relevance
+      - `compare rules BR-042 BR-055` - Compare multiple rules
+      - `analyze coverage "ticket context"` - Check if rules cover a scenario
+
+      **Pattern Recognition:**
+      - `rule patterns "fee calculation"` - Identify rule categories
+      - `identify gaps "ticket content"` - Find uncovered requirements
+
+      **Edge Case Handling:**
+      - `partial coverage BR-042` - Handle partial rule matches
+      - `rule conflict BR-042 BR-055` - Resolve conflicting rules
+
+      Use these commands to quickly find relevant rules, determine their applicability, and identify when new rules are needed.
+
+examples:
+  # Search Strategy Examples
+  - input: |
+      search id "BR-042"
+    output: |
+      Found rule BR-042 in:
+      1. rules/BR-042-extension-fee-calculation.md (primary definition)
+      2. rules/BR-051-subscription-management.md (reference only)
+      
+      The primary rule file is rules/BR-042-extension-fee-calculation.md
+
+  - input: |
+      search semantic "payment processing"
+    output: |
+      Found conceptually related rules:
+      
+      1. BR-042: Extension Fee Calculation
+         - Handles fee calculations for subscription extensions
+      
+      2. BR-087: Payment Gateway Integration
+         - Defines payment processing workflows
+      
+      3. BR-104: Refund Policy Implementation
+         - Covers payment reversal processes
+      
+      These rules all relate to financial transactions in different contexts.
+
+  # Relevance Analysis Examples
+  - input: |
+      analyze coverage "Customer wants to extend their expired subscription and asks what fee applies"
+    output: |
+      Coverage Analysis:
+      
+      BR-042 (Extension Fee Calculation) partially covers this scenario:
+      - ✅ Covers extension fee calculation logic
+      - ❌ Only applies to active subscriptions, not expired ones
+      
+      The ticket describes an expired subscription scenario, which isn't 
+      addressed in any existing rule. Recommend creating a new rule.
+
+  - input: |
+      compare rules BR-042 BR-087
+    output: |
+      Rule Comparison:
+      
+      BR-042: Extension Fee Calculation
+      - Scope: Subscription extensions only
+      - Applies: When customer requests extension
+      - Logic: 5% of monthly subscription cost
+      
+      BR-087: Payment Gateway Integration
+      - Scope: All payment processing
+      - Applies: When any payment is submitted
+      - Logic: Payment provider selection and API parameters
+      
+      BR-042 is more relevant for fee determination questions.
+      BR-087 is more relevant for payment processing questions.
+
+  # Edge Case Examples
+  - input: |
+      partial coverage BR-042
+    output: |
+      Partial Coverage Analysis for BR-042:
+      
+      Covered aspects:
+      - Fee calculation for extensions (5% of monthly cost)
+      - Processing workflow for extension requests
+      
+      Uncovered aspects:
+      - Handling of expired subscriptions
+      - Special customer categories (enterprise, non-profit)
+      
+      Recommendation: Create a supplementary rule that specifically 
+      addresses extension fees for expired subscriptions, referencing 
+      BR-042 as the base rule for the general approach.
+
+  - input: |
+      rule patterns "customer cancellation"
+    output: |
+      Pattern Analysis for "customer cancellation":
+      
+      This likely falls under these common rule patterns:
+      
+      1. Exception Handling pattern
+         - Relevant existing rules: BR-104 (Refund Policy)
+      
+      2. Fee Calculation pattern
+         - Relevant existing rules: BR-118 (Early Termination Fee)
+      
+      Based on this pattern matching, search those rule categories
+      for more specific matches, or prepare to create a new rule
+      following similar structural patterns.
+
+metadata:
+  priority: medium
+  version: 1.0
+</rule>
